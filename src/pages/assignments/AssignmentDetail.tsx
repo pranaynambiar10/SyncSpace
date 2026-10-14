@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import {
   FolderKanban, Users, Calendar, Clock, KeyRound, Copy,
   Check, ArrowLeft, Shield, Lock, CheckCircle2, AlertCircle,
-  FileText, Plus, ExternalLink
+  FileText, Plus, ExternalLink, ChevronRight, Award, UploadCloud,
+  FileUp
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -11,6 +12,10 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { formatDate, initials, avatarColor } from '@/lib/utils'
+import { CreateTaskModal } from '@/components/tasks/CreateTaskModal'
+import { SubmitDeliverableModal } from '@/components/tasks/SubmitDeliverableModal'
+import { ReviewDeliverableModal } from '@/components/tasks/ReviewDeliverableModal'
+import type { SubmissionDetails } from '@/components/tasks/ReviewDeliverableModal'
 
 interface MemberInfo {
   id: string
@@ -22,17 +27,41 @@ interface MemberInfo {
   verified_student: boolean
 }
 
+export interface TaskItem {
+  id: string
+  assignment_id: string
+  title: string
+  description: string | null
+  assigned_to: string | null
+  assignee_name?: string
+  priority: string
+  weight: number
+  deliverable_type: string
+  status: 'todo' | 'in_progress' | 'submitted' | 'under_review' | 'completed' | 'changes_requested'
+  deadline: string | null
+  current_submission?: SubmissionDetails | null
+}
+
 export default function AssignmentDetail() {
   const { assignmentId } = useParams<{ assignmentId: string }>()
   const { user } = useAuth()
 
   const [assignment, setAssignment] = useState<any | null>(null)
   const [members, setMembers] = useState<MemberInfo[]>([])
+  const [tasks, setTasks] = useState<TaskItem[]>([])
   const [isLeader, setIsLeader] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files'>('overview')
+
+  // Modals
+  const [showCreateTask, setShowCreateTask] = useState(false)
+  const [activeSubmitTask, setActiveSubmitTask] = useState<TaskItem | null>(null)
+  const [activeReviewSubmission, setActiveReviewSubmission] = useState<{
+    submission: SubmissionDetails
+    taskTitle: string
+  } | null>(null)
 
   const loadData = async () => {
     if (!assignmentId || !user) return
@@ -76,22 +105,70 @@ export default function AssignmentDetail() {
 
       if (mErr) throw mErr
 
-      if (mData) {
-        setMembers(
-          mData.map((m: any) => ({
-            id: m.id,
-            user_id: m.user_id,
-            role: m.role,
-            joined_at: m.joined_at,
-            full_name: m.profiles?.full_name || 'Student Member',
-            avatar_url: m.profiles?.avatar_url || null,
-            verified_student: m.profiles?.verified_student ?? false,
-          }))
-        )
+      const mappedMembers: MemberInfo[] = (mData || []).map((m: any) => ({
+        id: m.id,
+        user_id: m.user_id,
+        role: m.role,
+        joined_at: m.joined_at,
+        full_name: m.profiles?.full_name || 'Student Member',
+        avatar_url: m.profiles?.avatar_url || null,
+        verified_student: m.profiles?.verified_student ?? false,
+      }))
+      setMembers(mappedMembers)
+
+      // 3. Fetch tasks and submissions
+      const { data: tData, error: tErr } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          profiles:assigned_to ( full_name ),
+          task_submissions (
+            id, task_id, submitted_by, version_number, file_path, file_name,
+            written_response, url, review_status, submitted_at, is_current,
+            profiles:submitted_by ( full_name )
+          )
+        `)
+        .eq('assignment_id', assignmentId)
+        .order('created_at', { ascending: true })
+
+      if (tErr) throw tErr
+
+      if (tData) {
+        const mappedTasks: TaskItem[] = tData.map((t: any) => {
+          const currentSub = (t.task_submissions || []).find((s: any) => s.is_current) || null
+          return {
+            id: t.id,
+            assignment_id: t.assignment_id,
+            title: t.title,
+            description: t.description,
+            assigned_to: t.assigned_to,
+            assignee_name: t.profiles?.full_name || 'Unassigned',
+            priority: t.priority,
+            weight: t.weight,
+            deliverable_type: t.deliverable_type,
+            status: t.status,
+            deadline: t.deadline,
+            current_submission: currentSub
+              ? {
+                  id: currentSub.id,
+                  task_id: currentSub.task_id,
+                  submitted_by: currentSub.submitted_by,
+                  submitter_name: currentSub.profiles?.full_name || 'Student',
+                  version_number: currentSub.version_number,
+                  file_path: currentSub.file_path,
+                  file_name: currentSub.file_name,
+                  written_response: currentSub.written_response,
+                  url: currentSub.url,
+                  submitted_at: currentSub.submitted_at,
+                }
+              : null,
+          }
+        })
+        setTasks(mappedTasks)
       }
     } catch (err: unknown) {
       console.error(err)
-      setError('You are not a member of this assignment, or it does not exist.')
+      setError('You are not an authorized member of this assignment, or it does not exist.')
     } finally {
       setLoading(false)
     }
@@ -100,6 +177,16 @@ export default function AssignmentDetail() {
   useEffect(() => {
     loadData()
   }, [assignmentId, user])
+
+  // Compute Verified Progress
+  const totalWeight = tasks.reduce((sum, t) => sum + t.weight, 0)
+  const completedWeight = tasks
+    .filter(t => t.status === 'completed')
+    .reduce((sum, t) => sum + t.weight, 0)
+
+  // Guard divide by zero: if totalWeight === 0 -> null
+  const progressPct =
+    totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : null
 
   if (loading) {
     return (
@@ -140,8 +227,8 @@ export default function AssignmentDetail() {
         </Link>
       </div>
 
-      {/* Header Banner */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-surface-elevated via-surface-card to-surface-card border border-surface-border space-y-4">
+      {/* Header Banner with Verified Progress Engine */}
+      <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-surface-elevated via-surface-card to-surface-card border border-surface-border space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-500/10 text-brand-300 border border-brand-500/20">
@@ -152,7 +239,7 @@ export default function AssignmentDetail() {
             </span>
             {isLeader && (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                👑 You are the Leader
+                👑 Project Leader
               </span>
             )}
           </div>
@@ -184,6 +271,36 @@ export default function AssignmentDetail() {
             </p>
           )}
         </div>
+
+        {/* Verified Progress Bar */}
+        <div className="p-4 rounded-xl bg-surface-base/80 border border-surface-border space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+              <CheckCircle2 size={14} className="text-emerald-400" />
+              Verified Progress Engine
+            </span>
+            <span className="font-mono text-emerald-400 font-bold">
+              {progressPct !== null ? `${progressPct}% Verified` : 'No deliverables defined'}
+            </span>
+          </div>
+
+          {/* Progress track */}
+          <div className="w-full bg-surface-elevated h-2.5 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-brand-500 to-emerald-400 h-full rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progressPct ?? 0}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>
+              {completedWeight} of {totalWeight} total deliverable points approved
+            </span>
+            <span>
+              {tasks.filter(t => t.status === 'completed').length} / {tasks.length} tasks completed
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -197,7 +314,7 @@ export default function AssignmentDetail() {
           }`}
         >
           <Users size={16} />
-          Team Members ({members.length})
+          Team Roster ({members.length})
         </button>
 
         <button
@@ -209,33 +326,18 @@ export default function AssignmentDetail() {
           }`}
         >
           <CheckCircle2 size={16} />
-          Tasks & Review Flow (Phase 4)
-        </button>
-
-        <button
-          onClick={() => setActiveTab('files')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
-            activeTab === 'files'
-              ? 'border-brand-500 text-brand-400 bg-brand-500/5'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <FileText size={16} />
-          Deliverables (Phase 5)
+          Tasks & Review Flow ({tasks.length})
         </button>
       </div>
 
-      {/* Main Tab Content */}
+      {/* Tab: Overview & Members */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Members List (Left 2 Columns) */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Users size={18} className="text-brand-400" />
-                Team Roster ({members.length} / {assignment.max_members})
-              </h3>
-            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Users size={18} className="text-brand-400" />
+              Active Project Team ({members.length} / {assignment.max_members})
+            </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {members.map(m => {
@@ -278,7 +380,6 @@ export default function AssignmentDetail() {
               })}
             </div>
 
-            {/* Privacy Shield Banner */}
             <div className="p-4 rounded-xl bg-surface-elevated/50 border border-surface-border flex items-start gap-3">
               <Lock size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-slate-400 leading-relaxed">
@@ -287,62 +388,206 @@ export default function AssignmentDetail() {
             </div>
           </div>
 
-          {/* Right Column: Project Meta & Leader Actions */}
           <div className="space-y-6">
             <Card className="p-6 space-y-4">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Project Information
+                Academic Details
               </h3>
-
               <div className="space-y-3 text-xs">
                 <div>
                   <span className="text-slate-500">Department</span>
-                  <p className="text-slate-200 font-medium">{assignment.departments?.name || 'Department'}</p>
+                  <p className="text-slate-200 font-medium">{assignment.departments?.name || 'Academic Dept'}</p>
                 </div>
                 <div>
                   <span className="text-slate-500">Semester</span>
                   <p className="text-slate-200 font-medium">{assignment.semesters?.label || 'Semester'}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500">Group Capacity</span>
-                  <p className="text-slate-200 font-medium">
-                    {members.length} / {assignment.max_members} students
-                  </p>
+                  <span className="text-slate-500">Capacity</span>
+                  <p className="text-slate-200 font-medium">{members.length} / {assignment.max_members} students</p>
                 </div>
               </div>
-            </Card>
-
-            <Card className="p-6 bg-gradient-to-br from-brand-950/40 via-surface-card to-surface-card border-brand-500/20 space-y-2">
-              <div className="flex items-center gap-2 text-brand-300 font-semibold text-xs">
-                <Shield size={14} />
-                <span>Next Workflow: Task Engine</span>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Phase 4 Task Assignments & Leader Review will allow the leader to create tasks with weighted points, assign contributors, and review deliverable uploads.
-              </p>
             </Card>
           </div>
         </div>
       )}
 
+      {/* Tab: Tasks & Review Flow */}
       {activeTab === 'tasks' && (
-        <Card className="p-12 text-center border-dashed border-surface-border space-y-3">
-          <CheckCircle2 size={32} className="mx-auto text-brand-400" />
-          <h3 className="text-lg font-bold text-white">Task Management & Review Loop</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Ready for Phase 4: Deliverables, task weights, status machine, and submitter ≠ reviewer enforcement.
-          </p>
-        </Card>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-brand-400" />
+                Deliverable Tasks ({tasks.length})
+              </h3>
+              <p className="text-xs text-slate-400">
+                Each task contributes its weighted points to the Verified Progress score upon approval.
+              </p>
+            </div>
+
+            {isLeader && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowCreateTask(true)}
+                icon={<Plus size={15} />}
+              >
+                Add Deliverable Task
+              </Button>
+            )}
+          </div>
+
+          {tasks.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {tasks.map(task => {
+                const isAssignee = task.assigned_to === user?.id
+                const isUnderReview = task.status === 'under_review'
+
+                let statusBadge = (
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                    To Do
+                  </span>
+                )
+                if (task.status === 'under_review') {
+                  statusBadge = (
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 animate-pulse">
+                      Under Review
+                    </span>
+                  )
+                } else if (task.status === 'completed') {
+                  statusBadge = (
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      ✓ Completed
+                    </span>
+                  )
+                } else if (task.status === 'changes_requested') {
+                  statusBadge = (
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+                      Changes Requested
+                    </span>
+                  )
+                }
+
+                return (
+                  <Card key={task.id} className="p-5 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-bold text-brand-300 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20">
+                          {task.weight} Points
+                        </span>
+                        {statusBadge}
+                      </div>
+
+                      <h4 className="text-base font-bold text-white line-clamp-2">
+                        {task.title}
+                      </h4>
+
+                      {task.description && (
+                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-surface-border/60 flex items-center justify-between gap-2 text-xs">
+                      <div>
+                        <span className="text-[11px] text-slate-500 block">Assignee</span>
+                        <span className="text-slate-300 font-medium truncate block max-w-[140px]">
+                          {task.assignee_name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Member submit button */}
+                        {task.status !== 'completed' && (
+                          <Button
+                            variant="secondary"
+                            size="xs"
+                            onClick={() => setActiveSubmitTask(task)}
+                            icon={<FileUp size={13} />}
+                          >
+                            Submit
+                          </Button>
+                        )}
+
+                        {/* Leader review button when under review */}
+                        {isLeader && isUnderReview && task.current_submission && (
+                          <Button
+                            variant="primary"
+                            size="xs"
+                            onClick={() =>
+                              setActiveReviewSubmission({
+                                submission: task.current_submission!,
+                                taskTitle: task.title,
+                              })
+                            }
+                            icon={<CheckCircle2 size={13} />}
+                          >
+                            Evaluate
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
+            <Card className="p-12 text-center border-dashed border-surface-border space-y-3">
+              <CheckCircle2 size={32} className="mx-auto text-slate-600" />
+              <h3 className="text-base font-bold text-white">No tasks created yet</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {isLeader
+                  ? 'As project leader, create weighted deliverable tasks and assign them to your team.'
+                  : 'Your project leader has not created deliverable tasks for this assignment yet.'}
+              </p>
+              {isLeader && (
+                <div className="pt-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowCreateTask(true)}
+                    icon={<Plus size={14} />}
+                  >
+                    Add First Task
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
       )}
 
-      {activeTab === 'files' && (
-        <Card className="p-12 text-center border-dashed border-surface-border space-y-3">
-          <FileText size={32} className="mx-auto text-brand-400" />
-          <h3 className="text-lg font-bold text-white">Deliverable Cloud Storage</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Ready for Phase 5: Storage policies isolating assignment files to enrolled members only.
-          </p>
-        </Card>
+      {/* Modals */}
+      <CreateTaskModal
+        assignmentId={assignment.id}
+        members={members.map(m => ({ user_id: m.user_id, full_name: m.full_name }))}
+        isOpen={showCreateTask}
+        onClose={() => setShowCreateTask(false)}
+        onTaskCreated={loadData}
+      />
+
+      {activeSubmitTask && (
+        <SubmitDeliverableModal
+          assignmentId={assignment.id}
+          taskId={activeSubmitTask.id}
+          taskTitle={activeSubmitTask.title}
+          deliverableType={activeSubmitTask.deliverable_type}
+          isOpen={true}
+          onClose={() => setActiveSubmitTask(null)}
+          onSubmitSuccess={loadData}
+        />
+      )}
+
+      {activeReviewSubmission && (
+        <ReviewDeliverableModal
+          submission={activeReviewSubmission.submission}
+          taskTitle={activeReviewSubmission.taskTitle}
+          isOpen={true}
+          onClose={() => setActiveReviewSubmission(null)}
+          onReviewCompleted={loadData}
+        />
       )}
     </div>
   )
