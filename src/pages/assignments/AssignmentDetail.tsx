@@ -4,7 +4,7 @@ import {
   FolderKanban, Users, Calendar, Clock, KeyRound, Copy,
   Check, ArrowLeft, Shield, Lock, CheckCircle2, AlertCircle,
   FileText, Plus, ExternalLink, ChevronRight, Award, UploadCloud,
-  FileUp
+  FileUp, MessageSquare
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -15,6 +15,7 @@ import { formatDate, initials, avatarColor } from '@/lib/utils'
 import { CreateTaskModal } from '@/components/tasks/CreateTaskModal'
 import { SubmitDeliverableModal } from '@/components/tasks/SubmitDeliverableModal'
 import { ReviewDeliverableModal } from '@/components/tasks/ReviewDeliverableModal'
+import { TeamDiscussion } from '@/components/collaboration/TeamDiscussion'
 import type { SubmissionDetails } from '@/components/tasks/ReviewDeliverableModal'
 
 interface MemberInfo {
@@ -53,7 +54,7 @@ export default function AssignmentDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'discussion'>('overview')
 
   // Modals
   const [showCreateTask, setShowCreateTask] = useState(false)
@@ -328,6 +329,18 @@ export default function AssignmentDetail() {
           <CheckCircle2 size={16} />
           Tasks & Review Flow ({tasks.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('discussion')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+            activeTab === 'discussion'
+              ? 'border-brand-500 text-brand-400 bg-brand-500/5'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <MessageSquare size={16} />
+          Team Discussion
+        </button>
       </div>
 
       {/* Tab: Overview & Members */}
@@ -557,6 +570,11 @@ export default function AssignmentDetail() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Tab: Team Discussion & Announcements */}
+      {activeTab === 'discussion' && (
+        <TeamDiscussion assignmentId={assignment.id} isLeader={isLeader} />
       )}
 
       {/* Modals */}
