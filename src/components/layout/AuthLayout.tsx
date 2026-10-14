@@ -10,6 +10,8 @@ interface AuthLayoutProps {
   children: React.ReactNode
   /** Override the default tagline shown on the left panel */
   tagline?: string
+  title?: string
+  subtitle?: string
 }
 
 const FEATURES = [
@@ -21,6 +23,8 @@ const FEATURES = [
 export const AuthLayout: React.FC<AuthLayoutProps> = ({
   children,
   tagline = 'Academic collaboration for university students',
+  title,
+  subtitle,
 }) => (
   <div className="min-h-dvh flex bg-surface-base">
     {/* ── Left panel — brand ── */}
@@ -98,7 +102,13 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
       <div className="absolute top-6 left-6 lg:hidden">
         <Logo size="sm" variant="full" />
       </div>
-      <div className="w-full max-w-md animate-slide-up">
+      <div className="w-full max-w-md animate-slide-up space-y-6">
+        {(title || subtitle) && (
+          <div className="text-center space-y-1.5">
+            {title && <h2 className="text-2xl font-bold text-white tracking-tight">{title}</h2>}
+            {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+          </div>
+        )}
         {children}
       </div>
     </div>

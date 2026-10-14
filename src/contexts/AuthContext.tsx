@@ -56,9 +56,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = useCallback(async (uid: string) => {
     const [{ data: prof }, { data: adminFlag }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', uid).single(),
-      supabase.rpc('is_admin', { p_user_id: uid }),
+      supabase.rpc('is_admin', { p_user_id: uid } as any),
     ])
-    setProfile((prof as Profile) ?? null)
+    setProfile((prof as unknown as Profile) ?? null)
     setIsAdmin(adminFlag === true)
   }, [])
 

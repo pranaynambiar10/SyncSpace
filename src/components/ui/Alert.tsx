@@ -2,7 +2,7 @@ import React from 'react'
 import { AlertCircle, CheckCircle2, Info, AlertTriangle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type AlertVariant = 'info' | 'success' | 'warning' | 'error'
+type AlertVariant = 'info' | 'success' | 'warning' | 'error' | 'danger'
 
 interface AlertProps {
   variant?:   AlertVariant
@@ -17,6 +17,7 @@ const config: Record<AlertVariant, { icon: React.ReactNode; cls: string; titleCl
   success: { icon: <CheckCircle2 size={16} />,  cls: 'bg-emerald-950/60 border-emerald-800/50', titleCls: 'text-emerald-300', textCls: 'text-emerald-400' },
   warning: { icon: <AlertTriangle size={16} />, cls: 'bg-amber-950/60 border-amber-800/50',   titleCls: 'text-amber-300',   textCls: 'text-amber-400' },
   error:   { icon: <AlertCircle size={16} />,   cls: 'bg-red-950/60 border-red-800/50',       titleCls: 'text-red-300',     textCls: 'text-red-400' },
+  danger:  { icon: <AlertCircle size={16} />,   cls: 'bg-red-950/60 border-red-800/50',       titleCls: 'text-red-300',     textCls: 'text-red-400' },
 }
 
 export const Alert: React.FC<AlertProps> = ({

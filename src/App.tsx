@@ -12,7 +12,7 @@ import SignUp from '@/pages/auth/SignUp'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
 import EmailVerification from '@/pages/auth/EmailVerification'
-import { AuthCallback } from '@/pages/auth/AuthCallback'
+import AuthCallback from '@/pages/auth/AuthCallback'
 
 // Onboarding
 import Onboarding from '@/pages/onboarding/Onboarding'

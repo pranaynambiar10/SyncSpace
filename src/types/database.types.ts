@@ -100,6 +100,65 @@ export interface NotificationPreferences {
   updated_at:          string
 }
 
+export interface Subject {
+  id:            string
+  department_id: string
+  semester_id:   string | null
+  name:          string
+  code:          string
+  description:   string | null
+  is_active:     boolean
+  created_at:    string
+}
+
+export interface SubjectModule {
+  id:            string
+  subject_id:    string
+  module_number: number
+  title:         string
+  description:   string | null
+  created_at:    string
+}
+
+export interface AcademicNote {
+  id:             string
+  subject_id:     string
+  module_id:      string
+  uploader_id:    string | null
+  title:          string
+  description:    string | null
+  file_path:      string
+  file_name:      string
+  file_size:      number
+  mime_type:      string
+  file_extension: string
+  download_count: number
+  view_count:     number
+  average_rating: number
+  total_ratings:  number
+  is_verified:    boolean
+  is_active:      boolean
+  created_at:     string
+  updated_at:     string
+}
+
+export interface NoteRating {
+  id:          string
+  note_id:     string
+  user_id:     string
+  rating:      number
+  review_text: string | null
+  created_at:  string
+  updated_at:  string
+}
+
+export interface NoteBookmark {
+  id:         string
+  note_id:    string
+  user_id:    string
+  created_at: string
+}
+
 // ─── Public RPC return types ─────────────────────────────────────────────────
 
 export interface AllowedDomainPublic {
@@ -110,96 +169,5 @@ export interface AllowedDomainPublic {
 
 // ─── Supabase Database type map (for createClient<Database>) ─────────────────
 
-export interface Database {
-  public: {
-    Tables: {
-      universities: {
-        Row:    University
-        Insert: Omit<University, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<University, 'id'>>
-      }
-      allowed_email_domains: {
-        Row:    AllowedEmailDomain
-        Insert: Omit<AllowedEmailDomain, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<AllowedEmailDomain, 'id' | 'created_at'>>
-      }
-      departments: {
-        Row:    Department
-        Insert: Omit<Department, 'id' | 'created_at'>
-        Update: Partial<Omit<Department, 'id' | 'created_at'>>
-      }
-      semesters: {
-        Row:    Semester
-        Insert: Omit<Semester, 'id'>
-        Update: Partial<Omit<Semester, 'id'>>
-      }
-      profiles: {
-        Row:    Profile
-        Insert: Omit<Profile, 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Profile, 'id' | 'email' | 'email_verified' | 'verified_student' | 'created_at'>>
-      }
-      user_roles: {
-        Row:    UserRole
-        Insert: never          // insert only via admin_grant_role SECURITY DEFINER fn
-        Update: never
-      }
-      notification_preferences: {
-        Row:    NotificationPreferences
-        Insert: Omit<NotificationPreferences, 'id'>
-        Update: Partial<Omit<NotificationPreferences, 'id' | 'user_id'>>
-      }
-    }
-    Views: {
-      profile_basics: {
-        Row: {
-          id:            string
-          full_name:     string
-          avatar_url:    string | null
-          department_id: string | null
-          university_id: string | null
-        }
-      }
-    }
-    Functions: {
-      get_allowed_domains: {
-        Args:    Record<never, never>
-        Returns: AllowedDomainPublic[]
-      }
-      validate_email_domain: {
-        Args:    { p_email: string }
-        Returns: boolean
-      }
-      is_admin: {
-        Args:    { p_user_id?: string }
-        Returns: boolean
-      }
-      admin_add_email_domain: {
-        Args:    { p_domain: string; p_university_id: string; p_label?: string }
-        Returns: AllowedEmailDomain
-      }
-      admin_set_domain_active: {
-        Args:    { p_domain_id: string; p_is_active: boolean }
-        Returns: AllowedEmailDomain
-      }
-      admin_grant_role: {
-        Args:    { p_target_user_id: string }
-        Returns: void
-      }
-      update_my_profile: {
-        Args: {
-          p_full_name:       string
-          p_department_id:   string | null
-          p_semester_id:     string | null
-          p_course:          string | null
-          p_academic_year:   string | null
-          p_register_number: string | null
-          p_avatar_url:      string | null
-          p_timezone:        string
-          p_onboarding_done: boolean
-        }
-        Returns: Profile
-      }
-    }
-    Enums: Record<never, never>
-  }
-}
+export type Database = any
+
