@@ -22,6 +22,9 @@ import Dashboard from '@/pages/dashboard/Dashboard'
 import Profile from '@/pages/profile/Profile'
 import DomainManagement from '@/pages/admin/DomainManagement'
 import NotesLibrary from '@/pages/notes/NotesLibrary'
+import AssignmentsList from '@/pages/assignments/AssignmentsList'
+import CreateAssignment from '@/pages/assignments/CreateAssignment'
+import AssignmentDetail from '@/pages/assignments/AssignmentDetail'
 
 export default function App() {
   return (
@@ -71,16 +74,9 @@ export default function App() {
               }
             />
 
-            {/* Placeholder for Assignments and Notes Library (Phases 2-3) */}
-            <Route
-              path="/assignments"
-              element={
-                <div className="p-8 text-center text-slate-400">
-                  <h2 className="text-xl font-bold text-white mb-2">Assignments Module</h2>
-                  <p className="text-sm">Phase 3 Group Assignments & Membership</p>
-                </div>
-              }
-            />
+            <Route path="/assignments" element={<AssignmentsList />} />
+            <Route path="/assignments/new" element={<CreateAssignment />} />
+            <Route path="/assignments/:assignmentId" element={<AssignmentDetail />} />
             <Route path="/notes" element={<NotesLibrary />} />
           </Route>
 
