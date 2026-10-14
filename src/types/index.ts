@@ -9,5 +9,10 @@ export type {
   UserRole,
   NotificationPreferences,
   AllowedDomainPublic,
+  Subject,
+  SubjectModule,
+  AcademicNote,
+  NoteRating,
+  NoteBookmark,
   Database,
 } from './database.types'

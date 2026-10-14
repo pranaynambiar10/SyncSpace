@@ -53,6 +53,16 @@ export function truncate(str: string, max = 60): string {
   return str.length <= max ? str : `${str.slice(0, max).trimEnd()}…`
 }
 
+/** Format file size in bytes to human-readable string (KB, MB, GB) */
+export function formatBytes(bytes: number, decimals = 1): string {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
+}
+
 /** Return initials from a full name (up to 2 letters) */
 export function initials(name: string): string {
   return name

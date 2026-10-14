@@ -21,6 +21,7 @@ import Onboarding from '@/pages/onboarding/Onboarding'
 import Dashboard from '@/pages/dashboard/Dashboard'
 import Profile from '@/pages/profile/Profile'
 import DomainManagement from '@/pages/admin/DomainManagement'
+import NotesLibrary from '@/pages/notes/NotesLibrary'
 
 export default function App() {
   return (
@@ -80,15 +81,7 @@ export default function App() {
                 </div>
               }
             />
-            <Route
-              path="/notes"
-              element={
-                <div className="p-8 text-center text-slate-400">
-                  <h2 className="text-xl font-bold text-white mb-2">Academic Notes Library</h2>
-                  <p className="text-sm">Phase 2 Subject & Module Repository</p>
-                </div>
-              }
-            />
+            <Route path="/notes" element={<NotesLibrary />} />
           </Route>
 
           {/* Catch-all 404 Route */}

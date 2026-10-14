@@ -1,7 +1,7 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, FolderKanban, Bell, User, Settings,
+  LayoutDashboard, FolderKanban, BookOpen, Bell, User, Settings,
   Shield, LogOut, ChevronRight, GraduationCap,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -9,9 +9,10 @@ import { Logo } from '@/components/ui/Logo'
 import { initials, avatarColor } from '@/lib/utils'
 
 const NAV_ITEMS = [
-  { to: '/dashboard',   icon: <LayoutDashboard size={18} />, label: 'Dashboard'   },
-  { to: '/assignments', icon: <FolderKanban    size={18} />, label: 'Assignments'  },
-  { to: '/notifications',icon:<Bell            size={18} />, label: 'Notifications'},
+  { to: '/dashboard',   icon: <LayoutDashboard size={18} />, label: 'Dashboard'     },
+  { to: '/notes',       icon: <BookOpen        size={18} />, label: 'Notes Library' },
+  { to: '/assignments', icon: <FolderKanban    size={18} />, label: 'Assignments'   },
+  { to: '/notifications',icon:<Bell            size={18} />, label: 'Notifications' },
 ]
 
 export const Sidebar: React.FC = () => {
