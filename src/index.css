@@ -1,0 +1,187 @@
+/* ─────────────────────────────────────────────
+   SyncSpace Campus — Global Styles
+   Design: Dark midnight navy with indigo/violet brand
+   ───────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base reset ── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    @apply dark;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface-base text-slate-100 font-sans;
+    min-height: 100dvh;
+  }
+
+  #root {
+    @apply min-h-dvh flex flex-col;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track  { @apply bg-surface-card; }
+  ::-webkit-scrollbar-thumb  { @apply bg-surface-border2 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-brand-600; }
+
+  /* Focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface-base;
+  }
+}
+
+/* ── Component classes ── */
+@layer components {
+  /* Glass card */
+  .glass {
+    background: rgba(8, 15, 38, 0.7);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid rgba(28, 45, 82, 0.8);
+    @apply shadow-glass;
+  }
+
+  .glass-light {
+    background: rgba(13, 23, 51, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(37, 54, 89, 0.6);
+  }
+
+  /* Brand gradient text */
+  .text-gradient {
+    @apply bg-gradient-brand bg-clip-text text-transparent;
+  }
+
+  /* Brand gradient border */
+  .border-gradient {
+    position: relative;
+  }
+  .border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: inherit;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Input base */
+  .input-base {
+    @apply w-full bg-surface-elevated border border-surface-border2 rounded-xl
+           px-4 py-3 text-sm text-slate-100 placeholder-slate-500
+           transition-all duration-200
+           focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50;
+  }
+  .input-base:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Button variants */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium
+           rounded-xl transition-all duration-200 focus-visible:ring-2
+           focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-gradient-brand text-white shadow-brand-sm
+           hover:shadow-brand hover:scale-[1.02] active:scale-[0.98]
+           focus-visible:ring-brand-500;
+  }
+  .btn-secondary {
+    @apply btn bg-surface-elevated border border-surface-border2 text-slate-200
+           hover:bg-surface-hover hover:border-brand-600 active:scale-[0.98]
+           focus-visible:ring-brand-500;
+  }
+  .btn-ghost {
+    @apply btn text-slate-400 hover:text-slate-200 hover:bg-surface-elevated
+           active:scale-[0.98] focus-visible:ring-brand-500;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]
+           focus-visible:ring-red-500;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-brand  { @apply badge bg-brand-900/60 text-brand-300 border border-brand-800/50; }
+  .badge-success{ @apply badge bg-emerald-900/60 text-emerald-300 border border-emerald-800/50; }
+  .badge-warning{ @apply badge bg-amber-900/60 text-amber-300 border border-amber-800/50; }
+  .badge-danger { @apply badge bg-red-900/60 text-red-300 border border-red-800/50; }
+  .badge-muted  { @apply badge bg-surface-elevated text-slate-400 border border-surface-border; }
+
+  /* Spinner */
+  .spinner {
+    @apply inline-block rounded-full border-2 border-current border-t-transparent animate-spin;
+  }
+
+  /* Section label */
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-surface-border my-6;
+  }
+
+  /* Prose in surface */
+  .prose-surface { @apply text-slate-300 leading-relaxed; }
+
+  /* Nav link */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           text-slate-400 hover:text-slate-200 hover:bg-surface-elevated
+           transition-all duration-150;
+  }
+  .nav-link.active {
+    @apply bg-brand-900/50 text-brand-300 border border-brand-800/40;
+  }
+}
+
+/* ── Utility helpers ── */
+@layer utilities {
+  .min-h-dvh { min-height: 100dvh; }
+  .h-dvh     { height: 100dvh; }
+
+  /* Shimmer loading skeleton */
+  .skeleton {
+    @apply bg-surface-elevated rounded-lg overflow-hidden relative;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--shimmer-gradient, linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent));
+    background-size: 200% 100%;
+    animation: shimmer 2.4s linear infinite;
+  }
+
+  /* Glow accent behind elements */
+  .glow-accent {
+    filter: drop-shadow(0 0 24px rgba(99,102,241,0.4));
+  }
+
+  /* Truncate multiline */
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+}
