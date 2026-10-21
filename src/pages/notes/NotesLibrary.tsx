@@ -41,7 +41,12 @@ export default function NotesLibrary() {
       supabase.from('semesters').select('*').eq('is_active', true).order('sort_order'),
     ]).then(([deptRes, semRes]) => {
       if (deptRes.data) setDepartments(deptRes.data as Department[])
-      if (semRes.data) setSemesters(semRes.data as Semester[])
+      if (semRes.data) {
+        const uniqueSemesters = (semRes.data as Semester[]).filter(
+          (s, idx, arr) => arr.findIndex(item => item.sort_order === s.sort_order || item.label === s.label) === idx
+        )
+        setSemesters(uniqueSemesters)
+      }
     })
   }, [])
 

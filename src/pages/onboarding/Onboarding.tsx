@@ -45,7 +45,12 @@ export default function Onboarding() {
           }
         }
         if (deptRes.data) setDepartments(deptRes.data as Department[])
-        if (semRes.data) setSemesters(semRes.data as Semester[])
+        if (semRes.data) {
+          const uniqueSemesters = (semRes.data as Semester[]).filter(
+            (s, idx, arr) => arr.findIndex(item => item.sort_order === s.sort_order || item.label === s.label) === idx
+          )
+          setSemesters(uniqueSemesters)
+        }
       } catch (err: unknown) {
         console.error('Failed to load master metadata', err)
       } finally {
@@ -59,9 +64,9 @@ export default function Onboarding() {
   const filteredDepartments = departments.filter(
     d => !universityId || d.university_id === universityId
   )
-  const filteredSemesters = semesters.filter(
-    s => !universityId || s.university_id === universityId
-  )
+  const filteredSemesters = semesters
+    .filter(s => !universityId || s.university_id === universityId)
+    .filter((s, idx, arr) => arr.findIndex(item => item.sort_order === s.sort_order || item.label === s.label) === idx)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

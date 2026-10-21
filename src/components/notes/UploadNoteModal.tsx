@@ -55,9 +55,12 @@ export const UploadNoteModal: React.FC<UploadNoteModalProps> = ({
         }
       }
       if (semRes.data) {
-        setSemesters(semRes.data as Semester[])
-        if (!selectedSemId && semRes.data.length > 0) {
-          setSelectedSemId(semRes.data[0].id)
+        const uniqueSemesters = (semRes.data as Semester[]).filter(
+          (s, idx, arr) => arr.findIndex(item => item.sort_order === s.sort_order || item.label === s.label) === idx
+        )
+        setSemesters(uniqueSemesters)
+        if (!selectedSemId && uniqueSemesters.length > 0) {
+          setSelectedSemId(uniqueSemesters[0].id)
         }
       }
     })
