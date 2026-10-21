@@ -88,7 +88,8 @@ export function avatarColor(seed: string): string {
 
 /** Parse a Supabase/Postgres error message to a friendly string */
 export function friendlyError(message: string | undefined): string {
-  if (!message) return 'An unexpected error occurred.'
+  if (!message || message.trim() === '{}' || message.trim() === '{"error":"Internal Server Error"}')
+    return 'Authentication error. Please check your credentials or try again.'
   if (message.includes('signup_domain_not_allowed'))
     return 'Your email domain is not permitted. Please use your university email address.'
   if (message.includes('Email not confirmed'))

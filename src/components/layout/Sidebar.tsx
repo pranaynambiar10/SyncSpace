@@ -15,13 +15,14 @@ const NAV_ITEMS = [
   { to: '/notifications',icon:<Bell            size={18} />, label: 'Notifications' },
 ]
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { profile, isAdmin, signOut } = useAuth()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
     await signOut()
     navigate('/auth/signin')
+    onClose?.()
   }
 
   const name   = profile?.full_name ?? 'Student'
@@ -42,6 +43,7 @@ export const Sidebar: React.FC = () => {
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={onClose}
             className={({ isActive }) =>
               `nav-link ${isActive ? 'active' : ''}`
             }

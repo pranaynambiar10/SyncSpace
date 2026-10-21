@@ -25,6 +25,7 @@ import NotesLibrary from '@/pages/notes/NotesLibrary'
 import AssignmentsList from '@/pages/assignments/AssignmentsList'
 import CreateAssignment from '@/pages/assignments/CreateAssignment'
 import AssignmentDetail from '@/pages/assignments/AssignmentDetail'
+import Notifications from '@/pages/notifications/Notifications'
 
 export default function App() {
   return (
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="/assignments/new" element={<CreateAssignment />} />
             <Route path="/assignments/:assignmentId" element={<AssignmentDetail />} />
             <Route path="/notes" element={<NotesLibrary />} />
+            <Route path="/notifications" element={<Notifications />} />
           </Route>
 
           {/* Catch-all 404 Route */}

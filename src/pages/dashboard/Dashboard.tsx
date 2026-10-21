@@ -1,18 +1,23 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   FolderKanban, Plus, KeyRound, Award, CheckCircle2,
   Clock, ShieldCheck, Sparkles, AlertCircle, ArrowUpRight, GraduationCap
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Alert } from '@/components/ui/Alert'
 import { Logo } from '@/components/ui/Logo'
 
 export default function Dashboard() {
   const { profile, isAdmin } = useAuth()
+  const navigate = useNavigate()
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [joinCodeInput, setJoinCodeInput] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
 
   const fullName = profile?.full_name || 'Student'
   const department = profile?.department_id ? 'Department of Computer Applications' : 'Academic Department'
@@ -186,7 +191,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Join Code Modal Placeholder */}
+      {/* Join Code Modal */}
       {showJoinModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
           <div className="card p-6 w-full max-w-md space-y-4">
@@ -196,7 +201,7 @@ export default function Dashboard() {
                 Join Assignment
               </h3>
               <button
-                onClick={() => setShowJoinModal(false)}
+                onClick={() => { setShowJoinModal(false); setJoinError(null) }}
                 className="text-slate-400 hover:text-slate-200 text-sm"
               >
                 ✕
@@ -205,28 +210,55 @@ export default function Dashboard() {
             <p className="text-xs text-slate-400">
               Enter the unique 8-character invitation code provided by your group leader.
             </p>
-            <input
-              type="text"
-              placeholder="e.g. SYNC-7492"
-              value={joinCodeInput}
-              onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
-              className="input text-center text-lg font-mono tracking-widest uppercase"
-              maxLength={12}
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" onClick={() => setShowJoinModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  alert('Join code validation will execute against assignment_join_codes (Phase 2).')
-                  setShowJoinModal(false)
-                }}
-              >
-                Verify & Join
-              </Button>
-            </div>
+
+            {joinError && <Alert variant="danger">{joinError}</Alert>}
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const clean = joinCodeInput.trim().toUpperCase()
+                if (!clean) return
+                setJoining(true)
+                setJoinError(null)
+                try {
+                  const { data, error } = await supabase.rpc('join_assignment_by_code', { p_code: clean })
+                  if (error) throw error
+                  if (data?.success) {
+                    setShowJoinModal(false)
+                    navigate(`/assignments/${data.assignment_id}`)
+                  } else {
+                    setJoinError(data?.message || 'Invalid join code.')
+                  }
+                } catch (err: unknown) {
+                  setJoinError(err instanceof Error ? err.message : 'Failed to join group')
+                } finally {
+                  setJoining(false)
+                }
+              }}
+              className="space-y-4"
+            >
+              <input
+                type="text"
+                placeholder="e.g. SYNC4920"
+                value={joinCodeInput}
+                onChange={e => setJoinCodeInput(e.target.value.toUpperCase())}
+                className="input text-center text-xl font-mono tracking-widest uppercase font-bold"
+                maxLength={10}
+                required
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" type="button" onClick={() => { setShowJoinModal(false); setJoinError(null) }}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  loading={joining}
+                >
+                  Verify & Join
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
