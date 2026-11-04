@@ -15,9 +15,15 @@ export default function SignIn() {
   const location   = useLocation()
   const from       = (location.state as { from?: Location })?.from?.pathname ?? '/dashboard'
 
+  // Surface error messages forwarded via query param (e.g. ?error=link_expired)
+  const searchParams = new URLSearchParams(location.search)
+  const urlError = searchParams.get('error') === 'link_expired'
+    ? 'Your verification or reset link has expired. Please request a new one.'
+    : null
+
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [error,    setError]    = useState<string | null>(null)
+  const [error,    setError]    = useState<string | null>(urlError)
   const [loading,  setLoading]  = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {

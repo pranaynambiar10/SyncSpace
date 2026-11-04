@@ -1,27 +1,161 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   FolderKanban, Plus, KeyRound, Award, CheckCircle2,
-  Clock, ShieldCheck, Sparkles, AlertCircle, ArrowUpRight, GraduationCap
+  Clock, ShieldCheck, Sparkles, ArrowUpRight, GraduationCap
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
-import { Logo } from '@/components/ui/Logo'
+import { formatDate } from '@/lib/utils'
+
+interface DashboardStats {
+  activeAssignments: number
+  pendingSubmissions: number
+  avgProgress: number | null
+  achievementsUnlocked: number
+}
+
+interface ActiveAssignment {
+  id: string
+  title: string
+  subject_course: string | null
+  status: string
+  overall_deadline: string
+  role: 'leader' | 'member'
+  member_count: number
+  max_members: number
+}
 
 export default function Dashboard() {
-  const { profile, isAdmin } = useAuth()
+  const { profile, user, isAdmin } = useAuth()
   const navigate = useNavigate()
+
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [joinCodeInput, setJoinCodeInput] = useState('')
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
 
+  const [stats, setStats] = useState<DashboardStats>({
+    activeAssignments: 0,
+    pendingSubmissions: 0,
+    avgProgress: null,
+    achievementsUnlocked: 0,
+  })
+  const [activeAssignments, setActiveAssignments] = useState<ActiveAssignment[]>([])
+  const [loadingStats, setLoadingStats] = useState(true)
+
   const fullName = profile?.full_name || 'Student'
-  const department = profile?.department_id ? 'Department of Computer Applications' : 'Academic Department'
   const isVerifiedStudent = profile?.verified_student ?? true
+
+  const loadDashboardData = useCallback(async () => {
+    if (!user) return
+    setLoadingStats(true)
+    try {
+      // 1. Fetch ALL of the user's assignment memberships with assignment details
+      const { data: memberRows, error: mErr } = await supabase
+        .from('assignment_members')
+        .select(`
+          assignment_id,
+          role,
+          assignments:assignment_id (
+            id, title, subject_course, status, overall_deadline, max_members
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (mErr) throw mErr
+
+      const rows = (memberRows ?? []) as any[]
+
+      // 2. All assignments where the assignment row exists (non-deleted)
+      const allRows = rows.filter(r => r.assignments)
+
+      // 3. Build assignment list with member counts (show up to 6 on dashboard)
+      const assignmentList: ActiveAssignment[] = []
+      for (const row of allRows.slice(0, 6)) {
+        const { count } = await supabase
+          .from('assignment_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('assignment_id', row.assignment_id)
+
+        assignmentList.push({
+          id: row.assignments.id,
+          title: row.assignments.title,
+          subject_course: row.assignments.subject_course,
+          status: row.assignments.status,
+          overall_deadline: row.assignments.overall_deadline,
+          role: row.role,
+          member_count: count ?? 1,
+          max_members: row.assignments.max_members,
+        })
+      }
+      setActiveAssignments(assignmentList)
+
+      const assignmentIds = allRows.map(r => r.assignment_id).filter(Boolean)
+
+      // 4. Count pending submissions for this user via task_id → tasks.assignment_id
+      //    task_submissions uses review_status (not status) and links via task_id
+      let pendingCount = 0
+      if (assignmentIds.length > 0) {
+        // Get task IDs belonging to these assignments
+        const { data: taskRows } = await supabase
+          .from('tasks')
+          .select('id')
+          .in('assignment_id', assignmentIds)
+
+        const taskIds = (taskRows ?? []).map((t: any) => t.id)
+
+        if (taskIds.length > 0) {
+          const { count: pc } = await supabase
+            .from('task_submissions')
+            .select('*', { count: 'exact', head: true })
+            .in('task_id', taskIds)
+            .eq('submitted_by', user.id)
+            .eq('review_status', 'pending')
+            .eq('is_current', true)
+          pendingCount = pc ?? 0
+        }
+      }
+
+      // 5. Compute average verified progress using assignment_progress_view
+      let avgProgress: number | null = null
+      if (assignmentIds.length > 0) {
+        const { data: progRows } = await supabase
+          .from('assignment_progress_view')
+          .select('progress_pct')
+          .in('assignment_id', assignmentIds)
+
+        if (progRows && progRows.length > 0) {
+          const values = (progRows as any[])
+            .map(r => r.progress_pct)
+            .filter(v => v !== null && v !== undefined && !isNaN(Number(v)))
+            .map(v => Number(v))
+
+          if (values.length > 0) {
+            avgProgress = Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+          }
+        }
+      }
+
+      setStats({
+        activeAssignments: allRows.length,
+        pendingSubmissions: pendingCount,
+        avgProgress,
+        achievementsUnlocked: 0, // No achievements table yet
+      })
+    } catch (err) {
+      console.error('Dashboard data load error:', err)
+    } finally {
+      setLoadingStats(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [loadDashboardData])
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -74,7 +208,9 @@ export default function Dashboard() {
         <Card className="p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Assignments</p>
-            <h3 className="text-2xl font-bold text-white mt-1">0</h3>
+            <h3 className="text-2xl font-bold text-white mt-1">
+              {loadingStats ? '—' : stats.activeAssignments}
+            </h3>
             <span className="text-xs text-slate-500">In-progress group projects</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
@@ -85,7 +221,9 @@ export default function Dashboard() {
         <Card className="p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending Submissions</p>
-            <h3 className="text-2xl font-bold text-white mt-1">0</h3>
+            <h3 className="text-2xl font-bold text-white mt-1">
+              {loadingStats ? '—' : stats.pendingSubmissions}
+            </h3>
             <span className="text-xs text-slate-500">Awaiting leader review</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -96,7 +234,9 @@ export default function Dashboard() {
         <Card className="p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Verified Progress</p>
-            <h3 className="text-2xl font-bold text-emerald-400 mt-1">--%</h3>
+            <h3 className="text-2xl font-bold text-emerald-400 mt-1">
+              {loadingStats ? '—' : stats.avgProgress !== null ? `${stats.avgProgress}%` : '--%'}
+            </h3>
             <span className="text-xs text-slate-500">Weighted deliverables</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -107,7 +247,9 @@ export default function Dashboard() {
         <Card className="p-5 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Achievements Unlocked</p>
-            <h3 className="text-2xl font-bold text-violet-400 mt-1">0</h3>
+            <h3 className="text-2xl font-bold text-violet-400 mt-1">
+              {loadingStats ? '—' : stats.achievementsUnlocked}
+            </h3>
             <span className="text-xs text-slate-500">Peer & Leader awards</span>
           </div>
           <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
@@ -131,28 +273,70 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            {/* Empty State */}
-            <div className="py-12 px-4 rounded-xl border border-dashed border-surface-border text-center space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-surface-elevated flex items-center justify-center text-slate-500">
-                <FolderKanban size={32} />
+            {loadingStats ? (
+              <div className="py-12 text-center text-slate-400 text-sm animate-pulse">
+                Loading assignments…
               </div>
-              <div className="max-w-md mx-auto space-y-1">
-                <h3 className="text-base font-semibold text-slate-200">No active assignments yet</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Start your collaborative semester project or enter an invitation join code from your team leader.
-                </p>
+            ) : activeAssignments.length > 0 ? (
+              <div className="space-y-3">
+                {activeAssignments.map(item => (
+                  <Link
+                    key={item.id}
+                    to={`/assignments/${item.id}`}
+                    className="block group"
+                  >
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-surface-elevated/60 border border-surface-border hover:border-brand-500/40 transition-all duration-200">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                            item.role === 'leader'
+                              ? 'bg-brand-500/10 text-brand-300 border-brand-500/20'
+                              : 'bg-surface-card text-slate-300 border-surface-border'
+                          }`}>
+                            {item.role === 'leader' ? '👑 Leader' : 'Member'}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            Due {formatDate(item.overall_deadline)}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-200 group-hover:text-brand-300 transition-colors truncate">
+                          {item.title}
+                        </p>
+                        {item.subject_course && (
+                          <p className="text-xs text-slate-500 truncate">{item.subject_course}</p>
+                        )}
+                      </div>
+                      <div className="ml-4 text-xs text-slate-400 whitespace-nowrap">
+                        {item.member_count}/{item.max_members} members
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
-              <div className="flex justify-center gap-3 pt-2">
-                <Link to="/assignments/new">
-                  <Button variant="primary" size="sm" icon={<Plus size={14} />}>
-                    Create Assignment
+            ) : (
+              /* Empty State */
+              <div className="py-12 px-4 rounded-xl border border-dashed border-surface-border text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-surface-elevated flex items-center justify-center text-slate-500">
+                  <FolderKanban size={32} />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h3 className="text-base font-semibold text-slate-200">No active assignments yet</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Start your collaborative semester project or enter an invitation join code from your team leader.
+                  </p>
+                </div>
+                <div className="flex justify-center gap-3 pt-2">
+                  <Link to="/assignments/new">
+                    <Button variant="primary" size="sm" icon={<Plus size={14} />}>
+                      Create Assignment
+                    </Button>
+                  </Link>
+                  <Button variant="secondary" size="sm" onClick={() => setShowJoinModal(true)} icon={<KeyRound size={14} />}>
+                    Join via Code
                   </Button>
-                </Link>
-                <Button variant="secondary" size="sm" onClick={() => setShowJoinModal(true)} icon={<KeyRound size={14} />}>
-                  Join via Code
-                </Button>
+                </div>
               </div>
-            </div>
+            )}
           </Card>
         </div>
 
@@ -225,6 +409,7 @@ export default function Dashboard() {
                   if (error) throw error
                   if (data?.success) {
                     setShowJoinModal(false)
+                    await loadDashboardData()
                     navigate(`/assignments/${data.assignment_id}`)
                   } else {
                     setJoinError(data?.message || 'Invalid join code.')

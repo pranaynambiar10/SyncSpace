@@ -68,7 +68,6 @@ export default function SignUp() {
   const [confirm,   setConfirm]   = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [loading,   setLoading]   = useState(false)
-  const [success,   setSuccess]   = useState(false)
 
   // Load domain list once for the hint
   useEffect(() => { loadDomains() }, [loadDomains])
@@ -98,42 +97,8 @@ export default function SignUp() {
       return
     }
 
-    setSuccess(true)
-  }
-
-  if (success) {
-    return (
-      <AuthLayout tagline="One more step — verify your email.">
-        <div className="text-center space-y-6 animate-scale-in">
-          <div className="w-20 h-20 rounded-full bg-brand-900/40 border border-brand-700/40 flex items-center justify-center mx-auto">
-            <Mail size={36} className="text-brand-400" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-100 mb-2">Check your inbox</h2>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
-              We sent a verification link to <span className="text-brand-300 font-medium">{email}</span>.
-              Click it to activate your account, then sign in.
-            </p>
-          </div>
-          <Alert variant="info">
-            <strong>Dev mode tip:</strong> If email confirmation is disabled in Supabase,
-            your account is already active — go ahead and sign in.
-          </Alert>
-          <Button variant="secondary" fullWidth onClick={() => navigate('/auth/signin')}>
-            Go to Sign In
-          </Button>
-          <p className="text-xs text-slate-500">
-            Didn't receive it? Check spam or{' '}
-            <button
-              onClick={() => setSuccess(false)}
-              className="text-brand-400 hover:text-brand-300 transition-colors underline underline-offset-2"
-            >
-              try again
-            </button>
-          </p>
-        </div>
-      </AuthLayout>
-    )
+    // Redirect to the dedicated email verification page, passing email for resend
+    navigate('/auth/verify-email', { state: { email: email.trim().toLowerCase() } })
   }
 
   const domainHint = allowedDomains.length > 0

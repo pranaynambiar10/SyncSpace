@@ -1,7 +1,10 @@
 /**
- * /auth/callback — Supabase redirects here after email verification links.
+ * /auth/callback — Supabase redirects here after:
+ *   1. Email verification links (type=signup)
+ *   2. Password-reset links    (type=recovery)
+ *
  * Supabase handles the session automatically via detectSessionInUrl=true.
- * This component just waits for the session to settle, then redirects.
+ * We inspect the URL hash to decide where to redirect next.
  */
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -13,11 +16,25 @@ export default function AuthCallback() {
 
   useEffect(() => {
     if (loading) return
+
+    // Check the URL hash Supabase appends to the redirect URL.
+    // e.g. #access_token=...&type=recovery  or  #access_token=...&type=signup
+    const hash = window.location.hash
+    const params = new URLSearchParams(hash.replace(/^#/, ''))
+    const type = params.get('type')
+
     if (!session) {
-      // Something went wrong (expired link, etc.)
       navigate('/auth/signin?error=link_expired', { replace: true })
       return
     }
+
+    if (type === 'recovery') {
+      // Password reset link — send to the reset-password form
+      navigate('/auth/reset-password', { replace: true })
+      return
+    }
+
+    // Default: email confirmation / general login callback
     if (onboardingDone) {
       navigate('/dashboard', { replace: true })
     } else {

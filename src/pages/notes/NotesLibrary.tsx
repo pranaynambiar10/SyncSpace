@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
-  BookOpen, Plus, Search, Filter, Star, Bookmark,
-  TrendingUp, Sparkles, FolderDown, GraduationCap, RefreshCw
+  BookOpen, Plus, Search, Star, Bookmark,
+  Sparkles, RefreshCw
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { Card } from '@/components/ui/Card'
 import { NoteCard } from '@/components/notes/NoteCard'
 import type { NoteCardData } from '@/components/notes/NoteCard'
 import { UploadNoteModal } from '@/components/notes/UploadNoteModal'
-import type { Department, Semester } from '@/types'
 
 type ActiveTab = 'all' | 'top_rated' | 'bookmarks'
 
@@ -23,32 +21,11 @@ export default function NotesLibrary() {
   const [topRatedNotes, setTopRatedNotes] = useState<NoteCardData[]>([])
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
 
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [semesters, setSemesters] = useState<Semester[]>([])
-
   const [search, setSearch] = useState('')
-  const [selectedDept, setSelectedDept] = useState('')
-  const [selectedSem, setSelectedSem] = useState('')
   const [activeTab, setActiveTab] = useState<ActiveTab>('all')
 
   const [loading, setLoading] = useState(true)
   const [showUploadModal, setShowUploadModal] = useState(false)
-
-  // Fetch departments & semesters
-  useEffect(() => {
-    Promise.all([
-      supabase.from('departments').select('*').eq('is_active', true).order('name'),
-      supabase.from('semesters').select('*').eq('is_active', true).order('sort_order'),
-    ]).then(([deptRes, semRes]) => {
-      if (deptRes.data) setDepartments(deptRes.data as Department[])
-      if (semRes.data) {
-        const uniqueSemesters = (semRes.data as Semester[]).filter(
-          (s, idx, arr) => arr.findIndex(item => item.sort_order === s.sort_order || item.label === s.label) === idx
-        )
-        setSemesters(uniqueSemesters)
-      }
-    })
-  }, [])
 
   // Load notes and user bookmarks
   const loadNotesData = async () => {
@@ -151,7 +128,7 @@ export default function NotesLibrary() {
     loadNotesData()
   }, [user])
 
-  // Filter notes based on search, active tab, and department/semester dropdowns
+  // Filter notes based on search and active tab
   const displayedNotes = useMemo(() => {
     let sourceList = notes
     if (activeTab === 'top_rated') sourceList = topRatedNotes
@@ -161,15 +138,14 @@ export default function NotesLibrary() {
 
     return sourceList.filter(note => {
       const q = search.toLowerCase()
-      const matchesSearch =
+      return (
         !q ||
         note.title.toLowerCase().includes(q) ||
         (note.description && note.description.toLowerCase().includes(q)) ||
         (note.subject_code && note.subject_code.toLowerCase().includes(q)) ||
         (note.subject_name && note.subject_name.toLowerCase().includes(q)) ||
         (note.uploader_name && note.uploader_name.toLowerCase().includes(q))
-
-      return matchesSearch
+      )
     })
   }, [notes, topRatedNotes, bookmarkedIds, activeTab, search])
 
@@ -259,45 +235,15 @@ export default function NotesLibrary() {
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Input
-            id="notes-search-input"
-            placeholder="Search by title, subject code (e.g. CAS 2101), author..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            icon={<Search size={16} className="text-slate-500" />}
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedDept}
-            onChange={e => setSelectedDept(e.target.value)}
-            className="select text-xs h-9"
-          >
-            <option value="">All Departments</option>
-            {departments.map(d => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={selectedSem}
-            onChange={e => setSelectedSem(e.target.value)}
-            className="select text-xs h-9"
-          >
-            <option value="">All Semesters</option>
-            {semesters.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Input
+          id="notes-search-input"
+          placeholder="Search by title, subject code (e.g. CAS 2101), author..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          icon={<Search size={16} className="text-slate-500" />}
+        />
       </div>
 
       {/* Notes Grid */}
